@@ -82,12 +82,16 @@ pages=1-10
 quantity=2
 ```
 
-## Admin-Befehle
+## Zusatz-Befehle
 
 Nur der Admin (ADMIN_EMAIL) kann diese nutzen:
 
-- `gethelp` → Hilfe anfordern
 - `getstatus` → Service-Status abfragen
+
+Jeder auf der WHITELIST kann diese nutzen:
+
+- `gethelp` → Hilfe anfordern
+
 
 ## Logs
 

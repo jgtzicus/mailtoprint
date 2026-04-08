@@ -412,11 +412,6 @@ if __name__ == "__main__":
 
     logging.info("Starte Print at Home Dienst")
 
-    logging.info
-    (
-        f"ENV Variablen: EMAIL_ACCOUNT={EMAIL_ACCOUNT}, IMAP_SERVER={IMAP_SERVER}, SMTP_SERVER={SMTP_SERVER}, PRINTER_NAME={PRINTER_NAME}, WHITELIST={WHITELIST}"
-    )
-
     while True:
 
         try:
