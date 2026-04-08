@@ -18,28 +18,28 @@ EMAIL_ACCOUNT = os.getenv("EMAIL_ACCOUNT")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL")
 
-IMAP_SERVER = "imap.gmail.com"
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 465
+IMAP_SERVER = os.getenv("IMAP_SERVER", "imap.gmail.com")
+SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
 
-IMAP_FOLDER = "INBOX"
+IMAP_FOLDER = os.getenv("IMAP_FOLDER", "INBOX")
 
-PRINTER_NAME = "Brother_DCP-J1310DW"
-TMP_DIR = "/tmp/mailtoprint"
+PRINTER_NAME = os.getenv("PRINTER_NAME", "Brother_DCP-J1310DW")
+TMP_DIR = os.getenv("TMP_DIR", "/tmp/mailtoprint")
 
-WHITELIST = [
-    "jonasgoetz31@gmail.com",
-    "j.f.goetz@t-online.de",
-    "j.goetz@vega.com",
-    "n.t.goetz@t-online.de",
-    "niklasgoetz8@gmail.com",
-    "dunja.goetz@t-online.de",
-    "frieder.goetz@t-online.de",
-    "jule-katharina@gmx.de",
-]
+DEFAULT_WHITELIST = [ADMIN_EMAIL.lower()] if ADMIN_EMAIL else []
 
-LOG_DIR = "/home/pi/mailtoprint/logs"
-MAX_QUANTITY = 10
+
+def _parse_whitelist(raw_whitelist):
+    if not raw_whitelist:
+        return DEFAULT_WHITELIST
+    return [mail.strip().lower() for mail in raw_whitelist.split(",") if mail.strip()]
+
+
+WHITELIST = _parse_whitelist(os.getenv("WHITELIST"))
+
+LOG_DIR = os.getenv("LOG_DIR", "/home/pi/mailtoprint/logs")
+MAX_QUANTITY = int(os.getenv("MAX_QUANTITY", "10"))
 
 # ----------------------------------------
 
