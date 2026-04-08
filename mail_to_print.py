@@ -410,9 +410,9 @@ Feedback: {flags["feedback"]}
 
 if __name__ == "__main__":
 
-    logging.info("VERSION TEST 1")
-
     logging.info("Starte Print at Home Dienst")
+
+    logging.info("TEST VERSION 2")
 
     while True:
 
