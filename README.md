@@ -47,9 +47,23 @@ Erstelle `.env`:
 EMAIL_ACCOUNT=your-email@gmail.com
 EMAIL_PASSWORD=app-password
 ADMIN_EMAIL=your-email@gmail.com
+WHITELIST_FILE=whitelist.txt
 ```
 
-Passe die `WHITELIST` im Code an und setze `PRINTER_NAME`.
+Pflege erlaubte Absender in `whitelist.txt` (liegt im Repo und kommt damit auch via `git pull` auf den Raspberry):
+
+```text
+your-email@gmail.com
+friend@example.com
+```
+
+Optional kannst du stattdessen per Env-Variable arbeiten (ueberschreibt `whitelist.txt`):
+
+```text
+WHITELIST=your-email@gmail.com;friend@example.com
+```
+
+Setze außerdem `PRINTER_NAME`.
 
 ### 5. Starten
 
@@ -91,6 +105,12 @@ Nur der Admin (ADMIN_EMAIL) kann diese nutzen:
 Jeder auf der WHITELIST kann diese nutzen:
 
 - `gethelp` → Hilfe anfordern
+
+Hinweis zur Whitelist:
+
+- Quelle 1 (Prioritaet): `WHITELIST` aus Environment
+- Quelle 2: `whitelist.txt`
+- Fallback: `ADMIN_EMAIL` wird immer automatisch zugelassen
 
 
 ## Logs

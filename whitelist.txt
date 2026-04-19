@@ -1,0 +1,11 @@
+# Zulässige Absenderadressen für Print at Home
+# Eine Adresse pro Zeile oder mehrere per Komma/Semikolon
+
+jonasgoetz31@gmail.com
+j.f.goetz@t-online.de
+j.goetz@vega.com
+n.t.goetz@t-online.de
+niklasgoetz8@gmail.com
+dunja.goetz@t-online.de
+frieder.goetz@t-online.de
+jule-katharina@gmx.de

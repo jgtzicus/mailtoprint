@@ -17,6 +17,7 @@ load_dotenv()
 EMAIL_ACCOUNT = os.getenv("EMAIL_ACCOUNT")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL")
+ADMIN_EMAIL_NORMALIZED = (ADMIN_EMAIL or "").strip().lower()
 
 IMAP_SERVER = os.getenv("IMAP_SERVER", "imap.gmail.com")
 SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
@@ -26,17 +27,57 @@ IMAP_FOLDER = os.getenv("IMAP_FOLDER", "INBOX")
 
 PRINTER_NAME = os.getenv("PRINTER_NAME", "Brother_DCP-J1310DW")
 TMP_DIR = os.getenv("TMP_DIR", "/tmp/mailtoprint")
+WHITELIST_FILE = os.getenv("WHITELIST_FILE", "whitelist.txt")
 
-DEFAULT_WHITELIST = [ADMIN_EMAIL.lower()] if ADMIN_EMAIL else []
+DEFAULT_WHITELIST = [ADMIN_EMAIL_NORMALIZED] if ADMIN_EMAIL_NORMALIZED else []
 
 
 def _parse_whitelist(raw_whitelist):
     if not raw_whitelist:
         return DEFAULT_WHITELIST
-    return [mail.strip().lower() for mail in raw_whitelist.split(",") if mail.strip()]
+    tokens = re.split(r"[,;\n]+", raw_whitelist)
+    return [mail.strip().lower() for mail in tokens if mail.strip()]
 
 
-WHITELIST = _parse_whitelist(os.getenv("WHITELIST"))
+def _load_whitelist_from_file(file_path):
+    if not file_path or not os.path.exists(file_path):
+        return []
+
+    entries = []
+    with open(file_path, "r", encoding="utf-8") as file:
+        for line in file:
+            clean_line = line.split("#", 1)[0].strip().lower()
+            if not clean_line:
+                continue
+            entries.extend(_parse_whitelist(clean_line))
+
+    return entries
+
+
+def _load_whitelist():
+    raw_whitelist = os.getenv("WHITELIST")
+
+    if raw_whitelist:
+        whitelist = _parse_whitelist(raw_whitelist)
+        source = "env"
+    else:
+        whitelist = _load_whitelist_from_file(WHITELIST_FILE)
+        source = f"file:{WHITELIST_FILE}" if whitelist else "default"
+
+    # Admin immer zulassen, auch wenn er in Datei/Env vergessen wurde
+    if ADMIN_EMAIL_NORMALIZED and ADMIN_EMAIL_NORMALIZED not in whitelist:
+        whitelist.append(ADMIN_EMAIL_NORMALIZED)
+
+    # Doppelte Einträge entfernen, Reihenfolge beibehalten
+    unique_whitelist = []
+    for email in whitelist:
+        if email not in unique_whitelist:
+            unique_whitelist.append(email)
+
+    return unique_whitelist, source
+
+
+WHITELIST, WHITELIST_SOURCE = _load_whitelist()
 
 LOG_DIR = os.getenv("LOG_DIR", "/home/pi/mailtoprint/logs")
 MAX_QUANTITY = int(os.getenv("MAX_QUANTITY", "10"))
@@ -51,6 +92,8 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
+
+logging.info(f"Whitelist geladen aus: {WHITELIST_SOURCE} ({len(WHITELIST)} Eintraege)")
 
 # ---------------------------------------------------
 # Hilfe
@@ -101,7 +144,7 @@ def send_mail(subject, body, recipient, bcc_admin=True):
     msg["From"] = EMAIL_ACCOUNT
     msg["To"] = recipient
 
-    if bcc_admin:
+    if bcc_admin and ADMIN_EMAIL:
         msg["Bcc"] = ADMIN_EMAIL
 
     msg.set_content(body)
@@ -243,7 +286,7 @@ def process_mail():
         for msgid, data in client.fetch(messages, ["BODY[]"]).items():
 
             message = pyzmail.PyzMessage.factory(data[b"BODY[]"])
-            sender = message.get_addresses("from")[0][1].lower()
+            sender = message.get_addresses("from")[0][1].strip().lower()
 
             logging.info(f"Neue Mail von {sender}")
 
@@ -253,7 +296,9 @@ def process_mail():
 
             if sender not in WHITELIST:
 
-                logging.info("Absender nicht erlaubt")
+                logging.info(
+                    f"Absender nicht erlaubt: {sender} (Whitelist-Quelle: {WHITELIST_SOURCE})"
+                )
 
                 client.add_gmail_labels(msgid, ["IGNORED"])
                 client.set_flags(msgid, ["\\Seen"])
@@ -292,7 +337,7 @@ def process_mail():
 
             if "getstatus" in text_content.lower() or "getstatus" in subject.lower():
 
-                if sender == ADMIN_EMAIL:
+                if sender == ADMIN_EMAIL_NORMALIZED:
                     result = subprocess.run(
                         ["systemctl", "status", "mailtoprint.service"],
                         capture_output=True,
@@ -329,8 +374,12 @@ def process_mail():
                     filepath = os.path.join(TMP_DIR, safe_filename)
 
                     try:
+                        payload = part.get_payload()
+                        if isinstance(payload, str):
+                            payload = payload.encode(part.charset or "utf-8", errors="replace")
+
                         with open(filepath, "wb") as f:
-                            f.write(part.get_payload(decode=True))
+                            f.write(payload)
                     except Exception as e:
                         logging.error(f"Fehler beim Speichern der Datei: {e}")
                         failed_files.append(original_filename)
@@ -389,7 +438,7 @@ Feedback: {flags["feedback"]}
 """
 
             # Admin Bericht
-            if not sender == ADMIN_EMAIL:
+            if sender != ADMIN_EMAIL_NORMALIZED:
                 send_mail(
                     "Print at Home - Bericht", report, ADMIN_EMAIL, bcc_admin=False
                 )
