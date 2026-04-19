@@ -93,7 +93,7 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
-logging.info(f"Whitelist geladen aus: {WHITELIST_SOURCE} ({len(WHITELIST)} Eintraege)")
+logging.info(f"Whitelist geladen aus: {WHITELIST_SOURCE} ({len(WHITELIST)} Einträge)")
 
 # ---------------------------------------------------
 # Hilfe
@@ -224,11 +224,18 @@ def print_pdf(file_path, flags):
     result = subprocess.run(cmd, capture_output=True)
 
     if result.returncode != 0:
-        logging.error(f"Druckfehler: {result.stderr.decode()}")
+        error_message = result.stderr.decode(errors="replace").strip()
+        if not error_message:
+            error_message = result.stdout.decode(errors="replace").strip()
+        if not error_message:
+            error_message = "Unbekannter Druckfehler"
+
+        logging.error(f"Druckfehler: {error_message}")
+        return False, error_message
     else:
         logging.info("Druck erfolgreich")
 
-    return result.returncode == 0
+    return True, ""
 
 
 # ---------------------------------------------------
@@ -330,6 +337,7 @@ def process_mail():
 
             printed_files = []
             failed_files = []
+            failed_details = []
 
             # ---------------------------------
             # Status Befehl
@@ -383,19 +391,26 @@ def process_mail():
                     except Exception as e:
                         logging.error(f"Fehler beim Speichern der Datei: {e}")
                         failed_files.append(original_filename)
+                        failed_details.append(f"{original_filename}: Speichern fehlgeschlagen ({e})")
                         continue
 
                     if not os.path.exists(filepath):
                         logging.error(f"Datei existiert nicht: {filepath}")
                         failed_files.append(original_filename)
+                        failed_details.append(
+                            f"{original_filename}: Datei wurde nicht gespeichert ({filepath})"
+                        )
                         continue
 
-                    success = print_pdf(filepath, flags)
+                    success, error_message = print_pdf(filepath, flags)
 
                     if success:
                         printed_files.append(safe_filename)
                     else:
                         failed_files.append(safe_filename)
+                        failed_details.append(
+                            f"{safe_filename}: Druck fehlgeschlagen ({error_message})"
+                        )
 
                     time.sleep(2)  # Kurze Pause zwischen Drucken
                     os.remove(filepath)
@@ -418,6 +433,10 @@ def process_mail():
 
             status = "ERFOLGREICH" if not failed_files else "TEILWEISE FEHLER"
 
+            failed_details_text = "Keine"
+            if failed_details:
+                failed_details_text = "\n".join(failed_details)
+
             report = f"""
 Druckstatus: {status}
 
@@ -428,6 +447,9 @@ Gedruckte Dateien:
 
 Fehlgeschlagene Dateien:
 {failed_files}
+
+Fehlerdetails:
+{failed_details_text}
 
 Parameter:
 Color: {flags["color"]}
